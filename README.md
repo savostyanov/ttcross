@@ -3,8 +3,8 @@ ttcross
 
 Cross interpolation of high-dimensional arrays in tensor train format.
 This code implements the algorithms and numerical examples from the paper
-``Quasioptimality of maximum-volume cross interpolation of tensors'',
-[[arXiv:1305.1818](http://arxiv.org/abs/1305.1818)].
+[Quasioptimality of maximum-volume cross interpolation of tensors](http://dx.doi.org/10.1016/j.laa.2014.06.006),
+Linear Algebra and its Applications, 2014.
 
 
 Usage
