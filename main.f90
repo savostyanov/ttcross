@@ -33,7 +33,7 @@ program main
  write(*,'(a,i10,a)') 'Accuracy check on random set of ',NCHK,' entries ...'
  
  t1=timef()
- call dtt_accchk(2**10,tt,einf,efro,ainf,afro)
+ call dtt_accchk(NCHK,tt,einf,efro,ainf,afro)
  t2=timef()
  write(*,'(a,e12.4,a)') '... completed in ',t2-t1,' sec.'
  write(*,'(a,e12.4)') 'Relative accuracy estimate in infinity  norm: ',einf/ainf

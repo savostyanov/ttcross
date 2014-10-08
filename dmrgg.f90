@@ -250,7 +250,7 @@ contains
       call dcopy(r(p-1)*n(p)*(r(p)+1),bcol,1,u(p)%p,1)
       call dcopy((r(p)+1)*n(p+1)*r(p+1),brow,1,v(p+1)%p,1)
      
-      if(p.gt.1)then
+      if(p.gt.l)then
        !write(*,*) '(v)'
        call dcopy(r(p-1)*n(p)*r(p),v(p)%p,1,bcol,1)
        !call d2_luar(r(p-1),n(p)*(r(p)+1),inv(1,p-1),arg%u(p)%p,bcol)
