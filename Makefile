@@ -1,13 +1,13 @@
 .SUFFIXES:
 .SUFFIXES: .c .f .f90 .F90 .o
       
-FC      = gfortran
-LDR     = gfortran
+FC      = mpif90
+LDR     = mpif90
 OPT     = -O2 -ffree-line-length-none
 LIB     = -L/usr/local/lib  -llapack -lblas
 
 
-DEPS    = timef, default, rnd, lr, ptype, tt, ttind, ttio, dmrgg
+DEPS    = timef, default, rnd, lr, ptype, tt, ttind, ttio, dmrggp
 
 OBJ    = $(DEPS:,=.o).o main.o
 
