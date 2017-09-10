@@ -22,8 +22,7 @@ contains
   integer :: me,nproc,stat(MPI_STATUS_SIZE)
   double precision :: aval,pivot, t1,t2,t3
   double precision,allocatable :: a(:,:,:,:),b(:)
-  double precision,allocatable :: brow(:,:,:),bcol(:,:,:),bcol1(:,:),brow1(:,:),acol1(:,:),arow1(:,:)
-  double precision,allocatable :: mat(:,:),inv(:,:)
+  double precision,allocatable :: brow(:,:,:),bcol(:,:,:),bcol1(:,:),brow1(:,:),acol1(:,:),arow1(:,:),inv(:,:)
   integer,allocatable :: vip(:,:,:,:),newvip(:,:), lot(:,:)
   integer :: rr(0:tt_size)
   type(pointd3) :: u(1:tt_size),v(1:tt_size)
@@ -48,7 +47,7 @@ contains
   if(info.ne.0)then;write(*,*)'mpi: comm_rank fail: ',info;stop;endif
   
   ! init
-  allocate(vip(l-1:m,2,rnk,2),newvip(4,l-1:m),upd(l-1:m),mat(rnk**2,l-1:m),inv(rnk**2,l-1:m),stat=info)
+  allocate(vip(l-1:m,2,rnk,2),newvip(4,l-1:m),upd(l-1:m),inv(rnk**2,l-1:m),stat=info)
   if(info.ne.0)then;write(*,*)subnam,': cannot allocate init';stop;endif
   vip=0; vip(:,:,1,:)=1
   arg%r(0:m-l+1)=1; call alloc(arg)
@@ -56,7 +55,7 @@ contains
   do p=l,m 
    do j=1,n(p); arg%u(p)%p(1,j,1)=dmrgg_fun(1,j,1,1, p, l,m,rnk,vip,r,n, par); enddo
   end do
-  do p=l,m-1; mat(1,p)=arg%u(p)%p(1,1,1); inv(1,p)=1.d0/mat(1,p);  enddo
+  do p=l,m-1; inv(1,p)=1.d0/arg%u(p)%p(1,1,1); enddo
   
   do p=l,m-1
    allocate(u(p)%p(1,n(p),1),stat=info)
@@ -208,7 +207,7 @@ contains
 
       ! allocate memory for blocks etc
       allocate(bcol(r(p-1),n(p),r(p)+1),brow(r(p)+1,n(p+1),r(p+1)), stat=info)
-      if(info.ne.0)then;write(*,*)subnam,': not enough memory for new row/col';stop;endif
+      if(info.ne.0)then;write(*,*)subnam,': not enough memory for brow bcol';stop;endif
       call dcopy(r(p-1)*n(p)*r(p),arg%u(p)%p,1,bcol,1)
       !forall(i=1:r(p),j=1:n(p+1),k=1:r(p+1))brow(i,j,k)=arg%u(p+1)%p(i,j,k)
       do k=1,r(p+1);do j=1,n(p+1);call dcopy(r(p),arg%u(p+1)%p(1,j,k),1,brow(1,j,k),1);enddo;enddo
@@ -405,6 +404,16 @@ contains
     end if
 
     deallocate(acol1,arow1,bcol1,brow1,bcol,brow)
+
+    ! check u and v are correct
+    !allocate(bcol(r(p-1),n(p),r(p)),brow(r(p),n(p+1),r(p+1)), stat=info)
+    !if(info.ne.0)then;write(*,*)subnam,': not enough memory for brow bcol';stop;endif
+    !call d2_luac(r(p-1)*n(p),r(p),  inv(1,p),arg%u(p)%p,  bcol)
+    !call d2_luar(r(p),n(p+1)*r(p+1),inv(1,p),arg%u(p+1)%p,brow)
+    !call daxpy(r(p-1)*n(p)*r(p),-1.d0,u(p)%p,1,bcol,1)
+    !call daxpy(r(p)*n(p+1)*r(p+1),-1.d0,v(p+1)%p,1,brow,1)
+    !write(*,'(a,i1,a,2e10.3)')'[',me,']',dnrm2(r(p-1)*n(p)*r(p),bcol,1)/dnrm2(r(p-1)*n(p)*r(p),u(p)%p,1),dnrm2(r(p)*n(p+1)*r(p+1),brow,1)/dnrm2(r(p)*n(p+1)*r(p+1),v(p+1)%p,1)
+    !deallocate(bcol,brow)
     
     !end do !(loop over my cores)
   end do  !(loop over ranks)
@@ -412,12 +421,31 @@ contains
   !write(*,'(a,i1,a,2f15.7)') '[',me,']: ',dnrm2(r(p-1)*n(p)*r(p),arg%u(p)%p,1),dnrm2(r(p)*n(p+1)*r(p+1),arg%u(p+1)%p,1)
   !write(*,'(a,i1,a,2f15.7)') '[',me,']: ',minval(arg%u(p)%p),minval(arg%u(p+1)%p)
   call mpi_barrier(MPI_COMM_WORLD,info)
+  if(info.ne.0)then;write(*,*)subnam,': mpi barrier fail: ',info;stop;endif
+  !write(*,'(a,i2,a,10i3)')'[',me,']: ',r(l-1:m)
     
-  ! ASSEMBLE  
-  call mpi_allgather(inv(1,p),rnk**2,MPI_DOUBLE_PRECISION,inv(1,l),rnk**2,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,info)
-  if(info.ne.0)then;write(*,*)'mpi: allgather inv fail: ',info;stop;endif
-
+  ! ASSEMBLE
+  ! share inv matrices
+  !if(me.eq.0)write(*,*)'share inv matrices...'
+  if(p.gt.l)then
+   call mpi_send(inv(1,p),r(p)**2,MPI_DOUBLE_PRECISION,me-1,lft,MPI_COMM_WORLD,info)
+   if(info.ne.0)then;write(*,*)'mpi: send(inv) fail: ',info,me;stop;endif
+  end if
+  if(p.lt.m-1)then
+   call mpi_recv(inv(1,p+1),r(p+1)**2,MPI_DOUBLE_PRECISION,me+1,lft,MPI_COMM_WORLD,stat,info)
+   if(info.ne.0)then;write(*,*)'mpi: recv(inv) fail: ',info,me;stop;endif
+  end if
+  
+  ! compute approximation
+  !if(me.eq.0)write(*,*)'compute approximation...'
+  if(p.eq.l)call dcopy(r(l-1)*n(l)*r(l),u(l)%p,1,arg%u(l)%p,1)
+  if(p.eq.m-1)call dcopy(r(m-1)*n(m)*r(m),v(m)%p,1,arg%u(m)%p,1)
+  if(p.lt.m-1)call d2_luac(r(p)*n(p+1),r(p+1),inv(1,p+1),v(p+1)%p,arg%u(p+1)%p)
+  
   ! reallocate all inactive cores
+  !if(me.eq.0)write(*,*)'reallocate cores...'
+  do pp=l,m-1; deallocate(u(pp)%p); enddo
+  do pp=l+1,m; deallocate(v(pp)%p); enddo
   do pp=l,m
    if(.not.(pp.eq.p .or. pp.eq.p+1))then
     deallocate(arg%u(pp)%p)
@@ -425,28 +453,17 @@ contains
     if(info.ne.0)then;write(*,*)'cannot reallocate cores';stop;endif
    end if
   end do
-  do pp=l,m-1; deallocate(u(pp)%p); enddo
-  do pp=l+1,m; deallocate(v(pp)%p); enddo
   
   ! share cores
+  !if(me.eq.0)write(*,*)'broadcast cores...'
   call mpi_bcast(arg%u(l)%p,r(l-1)*n(l)*r(l),MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,info)
   if(info.ne.0)then;write(*,*)subnam,': mpi bcast',l,'failed:',info;stop;endif
   do pp=l+1,m
-   call mpi_bcast(arg%u(pp)%p,r(pp-1)*n(pp)*r(pp),MPI_DOUBLE_PRECISION,pp-l-1,MPI_COMM_WORLD)
+   call mpi_bcast(arg%u(pp)%p,r(pp-1)*n(pp)*r(pp),MPI_DOUBLE_PRECISION,pp-l-1,MPI_COMM_WORLD,info)
    if(info.ne.0)then;write(*,*)subnam,': mpi bcast', pp,'failed:',info;stop;endif
   end do
 
-  ! prepare the result 
-  do p=l,m-1
-   allocate(bcol(r(p-1),n(p),r(p)),brow(r(p),n(p+1),r(p+1)), stat=info)
-   if(info.ne.0)then;write(*,*)subnam,': cannot allocate bcol/brow: ',info;stop;endif
-   call d2_lua(r(p-1)*n(p),n(p+1)*r(p+1),r(p),inv(1,p),arg%u(p)%p,arg%u(p+1)%p,bcol,brow)
-   call dcopy(r(p-1)*n(p)*r(p),bcol,1,arg%u(p)%p,1)
-   call dcopy(r(p)*n(p+1)*r(p+1),brow,1,arg%u(p+1)%p,1)
-   deallocate(bcol,brow)
-  end do
-  
-  deallocate(mat,inv,vip)
+  deallocate(inv,vip)
  end subroutine 
  
 

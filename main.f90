@@ -18,11 +18,11 @@ program main
  call mpi_comm_rank(MPI_COMM_WORLD,me,info)
  if(info.ne.0)then;write(*,*)'mpi: comm_rank fail: ',info;stop;endif
 
- write(*,'(a,i3,a,i3)')'mpi: I am ',me,' of ',nproc
+ !write(*,'(a,i3,a,i3)')'mpi: I am ',me,' of ',nproc
  
  m=nproc+1 ! dimension of the problem
  n=2**7 ! mode size of the array
- r=16   ! TT rank bounds of the approximation
+ r=50   ! TT rank bounds of the approximation
  piv=1  ! pivoting `strength'. 
         ! piv=-1 means full pivoting
         ! piv=p, 1<=p<=3 means random pivoting on n*r^p entries
