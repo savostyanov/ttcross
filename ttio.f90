@@ -57,14 +57,14 @@ contains
    end if
   end do
 
-  sz=dtt_mem(arg)
+  sz=memory(arg)
   if(sz.le.0)then;write(*,*)subnam,': tt structure has invalid size: ',sz;endif
   allocate(x(max(sz,1)),stat=i)
   if(i.ne.0)then;write(*,*)subnam,': cannot allocate core array';stop;endif
 
   l=arg%l; m=arg%m; n=arg%n; r=arg%r; sz=0
   do b=l,m
-   forall(i=1:r(b-1),j=1:n(b),k=1:r(b))x(sz+i+(j-1)*r(b-1)+(k-1)*r(b-1)*n(b))=arg%u(b)%p(i,j,k)
+   call dcopy(r(b-1)*n(b)*r(b),arg%u(b)%p,1,x(sz+1),1)
    sz=sz+r(b-1)*n(b)*r(b)
   end do
 
@@ -138,14 +138,14 @@ contains
    end if
   end do
 
-  sz=ztt_mem(arg)
+  sz=memory(arg)
   if(sz.le.0)then;write(*,*)subnam,': tt structure has invalid size: ',sz;endif
   allocate(x(max(sz,1)),stat=i)
   if(i.ne.0)then;write(*,*)subnam,': cannot allocate core array';stop;endif
 
   l=arg%l; m=arg%m; n=arg%n; r=arg%r; sz=0
   do b=l,m
-   forall(i=1:r(b-1),j=1:n(b),k=1:r(b))x(sz+i+(j-1)*r(b-1)+(k-1)*r(b-1)*n(b))=arg%u(b)%p(i,j,k)
+   call zcopy(r(b-1)*n(b)*r(b),arg%u(b)%p,1,x(sz+1),1)
    sz=sz+r(b-1)*n(b)*r(b)
   end do
 
@@ -252,7 +252,7 @@ contains
   read(u,err=113,iostat=io) n(l:m),r(l-1:m)
   arg%n(l:m)=n(l:m);arg%r(l-1:m)=r(l-1:m); call alloc(arg)
 
-  sz=dtt_mem(arg)
+  sz=memory(arg)
   if(sz.le.0)then;write(*,*)subnam,': tt structure has invalid size: ',sz;endif
   allocate(x(max(sz,1)),stat=i)
   if(i.ne.0)then;write(*,*)subnam,': cannot allocate core array';stop;endif
@@ -260,7 +260,7 @@ contains
   read(u,err=114,iostat=io) x
   sz=0
   do b=l,m
-   forall(i=1:r(b-1),j=1:n(b),k=1:r(b))arg%u(b)%p(i,j,k)=x(sz+i+(j-1)*r(b-1)+(k-1)*r(b-1)*n(b))
+   call dcopy(r(b-1)*n(b)*r(b),x(sz+1),1,arg%u(b)%p,1)
    sz=sz+r(b-1)*n(b)*r(b)
   end do
 
@@ -354,7 +354,7 @@ contains
   read(u,err=113,iostat=io) n(l:m),r(l-1:m)
   arg%n(l:m)=n(l:m);arg%r(l-1:m)=r(l-1:m); call alloc(arg)
 
-  sz=ztt_mem(arg)
+  sz=memory(arg)
   if(sz.le.0)then;write(*,*)subnam,': tt structure has invalid size: ',sz;endif
   allocate(x(max(sz,1)),stat=i)
   if(i.ne.0)then;write(*,*)subnam,': cannot allocate core array';stop;endif
@@ -362,7 +362,7 @@ contains
   read(u,err=114,iostat=io) x
   sz=0
   do b=l,m
-   forall(i=1:r(b-1),j=1:n(b),k=1:r(b))arg%u(b)%p(i,j,k)=x(sz+i+(j-1)*r(b-1)+(k-1)*r(b-1)*n(b))
+   call zcopy(r(b-1)*n(b)*r(b),x(sz+1),1,arg%u(b)%p,1)
    sz=sz+r(b-1)*n(b)*r(b)
   end do
 
