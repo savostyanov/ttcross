@@ -3,8 +3,8 @@ ttcross
 
 Cross interpolation of high-dimensional arrays in tensor train format.
 This code implements the parallel version of the tensor cross interpolation algorithm, see
-  * [Quasioptimality of maximum-volume cross interpolation of tensors](http://dx.doi.org/10.1016/j.laa.2014.06.006), Linear Algebra and its Applications, 2014.
-  * [Parallel cross interpolation for high-precision calculation of high-dimensional integrals](http://arxiv.org/abs), arXiv: 1903.XXXXX, 2019.
+  * Dmitry Savostyanov, [Quasioptimality of maximum-volume cross interpolation of tensors](http://dx.doi.org/10.1016/j.laa.2014.06.006), Linear Algebra and its Applications, 2014.
+  * Sergey Dolgov and Dmitry Savostyanov, [Parallel cross interpolation for high-precision calculation of high-dimensional integrals](http://arxiv.org/abs/1903.11554), arXiv: 1903.11554, 2019.
  
 
 Usage
@@ -28,8 +28,5 @@ Tests
    * `test_qmc_gauss`: calculate generalised Gaussian integrals using quasi Monte Carlo algorithm
    * `test_crs_gauss`: calculate generalised Gaussian integrals using tensor cross interpolation algorithm
 
-
-If you benefit from this code, please consider citing the papers in your work.
-
-
+If you benefit from this code, please consider citing our papers in your work.
 
