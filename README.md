@@ -35,10 +35,10 @@ Quadruple precision
 Multiple precision
 ------------------
 
-   For those who desires even higher precision, we provide a multi-precision version of the code. It relies on the MPFUN2015 library written by David H. Bailey. 
+   For those who desires even higher precision, we provide a multiple-precision version of the code. It relies on the MPFUN2015 library written by David H. Bailey. 
    The source code of MPFUN2015 is included in the `mpfun-mpfr-v08` directory. The code uses GNU MPFR Library [https://www.mpfr.org/](https://www.mpfr.org/). Please install it on your system and set the ***MPFLIB*** variable in the *Makefile* accordingly.
    Compile the multi-precision version with `make test_mpf_ising.exe`, noting the following:
-   * BLAS/LAPACK libraries are *not* needed for this experiment --- all necessary subroutines are provided in the `mpblas.f90` file.
+   * No special BLAS/LAPACK libraries are needed for this experiment --- all multiple-precision BLAS/LAPACK subroutines are provided in the `mpblas.f90` file. You will still need a standard BLAS/LAPACK library to link and run the code.
    * The `-fdefault-real-XX` flag has to be disabled.
    * The precision is adjusted via the parameter `mpipl` in `./mpfun-mpfr-v08/mpfunf.f90`.
    After compiling, run the `test_mpf_ising.exe` to calculate Ising susceptibility integrals using tensor cross interpolation algorithm in multiple precision.
