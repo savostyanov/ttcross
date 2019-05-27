@@ -5,23 +5,20 @@ FC      = mpif90 -ffree-line-length-none
 CC      = mpicc
 LDR     = mpif90
 OPT     = -O2 -fopenmp #-fdefault-real-8 # enable for quad prec
-BLASLIB = -llapack -lblas # Set this to your BLAS & LAPACK distribution
-MPFLIB  =    # Set this to your MPFR distribution,
-             # for example -I/home/sd901/opt/mpfr/include -L/home/sd901/opt/mpfr/lib on my PC
-
+BLASLIB = -llapack -lblas     # Set this to your BLAS & LAPACK distribution
+#BLASLIB = -lmkl_gf_lp64 -lmkl_sequential -lmkl_core
+MPFLIB  = -lmpfr # parameters for MPFR distribution
 MPD    = ./mpfun-mpfr-v08
 SRC    = zero, nan, trans, default, timef, say, rnd, ptype, ort, lr, mat, quad, tt, ttaux, ttind, ttio, dmrgg, qmc, mc
 MPF    = mpfuna, mpfunf, mpfung1, mpinterface, mpmodule, mpblas, ttmp, dmrggmp
 OBJ    = $(SRC:,=.o).o
 MPOBJ  = $(MPF:,=.o).o
 
-MAIN = main
+MAIN = ising
 
-all: ising gauss
+all: ising
 
-ising:   test_crs_ising.exe test_qmc_ising.exe test_mpf_ising.exe test_mc_ising.exe
-gauss:   test_crs_gauss.exe test_qmc_gauss.exe 
-main2014: main2014.exe
+ising:   test_crs_ising.exe test_qmc_ising.exe test_mc_ising.exe
 
 mpfuna.o:   $(MPD)/mpfuna.f90
 		$(FC) $(OPT) -fno-underscoring -c $< $(MPFLIB)
@@ -43,7 +40,7 @@ mpinterface.o: $(MPD)/mpinterface.c
 		$(CC) $(OPT) -c $<
 
 test_mpf_ising.exe: $(OBJ) $(MPOBJ) test_mpf_ising.o 
-	$(LDR) $(OPT) $^ -o $@ -lmpfr $(BLASLIB) $(MPFLIB)
+	$(LDR) $(OPT) $^ -o $@ $(BLASLIB) $(MPFLIB)
 %.exe:  $(OBJ)  %.o
 	$(LDR) $(OPT) $^ -o $@ $(BLASLIB)
 

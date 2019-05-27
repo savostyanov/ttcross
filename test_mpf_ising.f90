@@ -12,7 +12,6 @@ program main
  integer(kind=8) :: neval
  double precision :: t1,t2,tcrs,acc
  type(mp_real),allocatable::par(:)
- integer,allocatable :: own(:)
  integer,parameter :: ndp1=mpipl, nwds1=int(ndp1/mpdpw+2)
  type(mp_real) :: zero,one,two,five,seven,ten,tpi,log2,half,zeta3
  type(mp_real) :: f,t, tru,val
@@ -41,7 +40,6 @@ program main
  call mpi_comm_rank(MPI_COMM_WORLD,me,info)
  if(info.ne.0)then;write(*,*)'mpi: comm_rank fail: ',info;stop;endif
  !write(*,'(a,i3,a,i3)')'mpi: I am ',me,' of ',nproc
- allocate(own(0:nproc))
  
  adj=0
  if(mod(n,2).eq.0)then;n=n+1;adj=1;endif
@@ -134,23 +132,17 @@ program main
   do i=1,m-1;qq%u(i)%p=one/val;end do
  end if
  
- !distribute bonds (ranks) between procs
- own(0)=tt%l
- do p=1,nproc-1; own(p) = tt%l + int(dble(tt%m-tt%l)*dble(p)/nproc); enddo
- own(nproc) = tt%m
- ! write(*,'(a,i3,a,8i5)')'[',me,']: own: ',own(0:nproc)
-
  t1=timef()
  if(tru.eq.0.d0)then
-  call mptt_dmrgg(tt,mpfunc_ising_discr,par,maxrank=r,accuracy=acc,own=own,pivoting=piv,neval=neval,quad=qq)
+  call mptt_dmrgg(tt,mpfunc_ising_discr,par,maxrank=r,accuracy=acc,pivoting=piv,neval=neval,quad=qq)
  else 
-  call mptt_dmrgg(tt,mpfunc_ising_discr,par,maxrank=r,accuracy=acc,own=own,pivoting=piv,neval=neval,quad=qq,tru=tru)
+  call mptt_dmrgg(tt,mpfunc_ising_discr,par,maxrank=r,accuracy=acc,pivoting=piv,neval=neval,quad=qq,tru=tru)
  endif
  t2=timef()
  tcrs=t2-t1
  if(me.eq.0)write(*,'(a,i12,a,e12.4,a)') '...with',neval,' evaluations completed in ',tcrs,' sec.'
 
- val = mptt_quad(tt,qq,own)
+ val = mptt_quad(tt,qq)
  if(me.eq.0) then
   write(stmp,'(a)')
   call mpsay(val, mpipl+20, saydigits, stmp)

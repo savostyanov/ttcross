@@ -8,7 +8,7 @@ module mp_dmrgg_lib
  implicit none
 contains
  
- subroutine mptt_dmrgg(arg,fun,par,accuracy,maxrank,own,pivoting,neval,quad,tru)
+ subroutine mptt_dmrgg(arg,fun,par,accuracy,maxrank,mybonds,pivoting,neval,quad,tru)
   ! approximate [fun] in TT format using dmrg greedy cross interpolation
   implicit none
   include 'mpif.h'
@@ -17,7 +17,7 @@ contains
   type(mp_real),intent(in),optional :: par(*)
   double precision,intent(in),optional :: accuracy
   integer,intent(in),optional :: maxrank
-  integer,intent(in),optional :: own(0:)
+  integer,intent(in),optional :: mybonds(0:)
   integer,intent(in),optional :: pivoting
   integer(kind=8),intent(out),optional :: neval
   type(mptt),intent(in),optional :: quad
@@ -35,7 +35,7 @@ contains
   type(mp_real),allocatable :: a(:,:,:,:),b(:),c(:),d(:),bcol(:,:,:),brow(:,:,:),bcol1(:,:),brow1(:,:),acol1(:,:),arow1(:,:)
   double precision,allocatable :: ccol1(:,:),crow1(:,:)
   real*8 :: bb(4),cc(4)
-  integer,allocatable :: lot(:,:),shifts(:)
+  integer,allocatable :: lot(:,:),shifts(:),own(:)
   type(mptt) :: col,row,ttqq
   type(point_mp) :: inv(0:tt_size)
   type(pointi2) :: vip(0:tt_size)
@@ -64,6 +64,16 @@ contains
   call mpi_comm_rank(MPI_COMM_WORLD,me,info)
   if(info.ne.0)then;write(*,*)'mpi: comm_rank fail: ',info;stop;endif
   if(nproc.ge.m)then;if(me.eq.0)write(*,*)'nproc exceeds or equal dimension, cannot proceed';stop;endif
+  
+  ! distribute bonds (ranks) between procs
+  allocate(own(0:nproc), stat=info)
+  if(info.ne.0)then;write(*,*)subnam,': cannot allocate own bonds';stop;endif
+  if(present(mybonds))then
+   own(0:nproc)=mybonds(0:nproc)
+  else 
+   call share(l,m-1,own)
+  end if 
+  !write(*,'(a,i3,a,32i4)')'[',me,']: own: ',own(0:nproc)
   
   ! allocating vip: i=vip(p)%p(1,r); j=vip(p)%p(2,r); k=vip(p)%p(3,r); q=vip(p)%p(4,r)
   allocate(shifts(0:nproc), stat=info)
@@ -168,8 +178,8 @@ contains
   !report initial results
   if(me.eq.0)then
    t2 = timef()
-   write(str,'(i3,a2,a,f5.1,a,a,f8.3,a,2f6.3,a)') &
-    0,'::',' rank', erank(arg),' .....   ....      ....   ',' amax ',amax, &
+   write(str,'(i3,a2,a,f5.1,a,2f6.3,a)') &
+    0,'::',' rank', erank(arg), &
     ' log10t,n ',dlog(t2-t1)/dlog(10.d0),dlog(dble(nevalall))/dlog(10.d0),' ...  .......'
    if(present(quad))then
     call mpsay(val, mpipl+20, saydigits, stmp)
@@ -625,8 +635,8 @@ contains
 
    ! REPORT current progress
    t2 = timef()
-   if(me.eq.0)write(str,'(i3,a2,a,f5.1,a,f9.3,1x,f9.3,a,f8.3,a,2f6.3)') &
-     it,sdir,' rank', erank(arg),' pivot ',pivotmin,pivotmax,' amax ',amax, &
+   if(me.eq.0)write(str,'(i3,a2,a,f5.1,a,2f6.3)') &
+     it,sdir,' rank', erank(arg),&
      ' log10t,n ',dlog(t2-t1)/dlog(10.d0),dlog(dble(nevalall))/dlog(10.d0)
    
    if(present(quad))then
@@ -640,7 +650,7 @@ contains
      end do 
     end do
     call mptt_lua(ttqq,inv,own)
-    val=mptt_quad(ttqq,own=own)
+    val=mptt_quad(ttqq,mybonds=own)
     call dealloc(ttqq)
    
     ! print error or internal conv
@@ -712,7 +722,7 @@ contains
   include 'mpif.h'
   type(mptt),intent(in) :: arg
   type(point_mp) :: inv(0:tt_size)
-  integer,intent(in),optional :: own(0:)
+  integer,intent(in) :: own(0:)
 
   character(len=*),parameter :: subnam='mptt_lua'
   integer,parameter :: tag=4
@@ -765,17 +775,17 @@ contains
   end if 
  end subroutine
 
- type(mp_real) function mptt_quad(arg,quad,own) result(val)  ! val is returned only on proc=0
+ type(mp_real) function mptt_quad(arg,quad,mybonds) result(val)  ! val is returned only on proc=0
   implicit none
   include 'mpif.h'
   type(mptt),intent(in),target :: arg
-  integer,intent(in),optional :: own(0:)
   type(mptt),intent(in),optional :: quad
+  integer,intent(in),optional,target :: mybonds(0:)
   
   character(len=*),parameter :: subnam='mptt_quad'
   integer,parameter :: tagsize=11,tagdata=12
   type(mp_real) :: zero,one
-  integer,pointer :: r(:),n(:)
+  integer,pointer :: r(:),n(:),own(:)
   integer :: me,her,him,nproc,info,stat(MPI_STATUS_SIZE),typed, mym,myn,herm,hern
   integer :: first,last, l,m,p,q,i,j,k, mn(2)
   type(mp_real),pointer :: prev(:,:),curr(:,:),next(:,:)
@@ -787,16 +797,20 @@ contains
   call mpi_comm_rank(MPI_COMM_WORLD,me,info)
   if(info.ne.0)then;write(*,*)'mpi: comm_rank fail: ',info;stop;endif
   
-  
   l=arg%l; m=arg%m; r=>arg%r; n=>arg%n
-  !if(me.eq.0)write(*,*)'compute local products...'
-  if(present(own))then
-   !write(*,'(a,i2,a,8i5)')'[',me,']: own: ',own(0:nproc)
-   first=own(me)
-   last=own(me+1)-1; if(me.eq.nproc-1)last=m
-  else
-   first=l; last=m
+  ! distribute bonds (ranks) between procs
+  if(present(mybonds))then
+   own=>mybonds
+  else 
+   allocate(own(0:nproc), stat=info)
+   if(info.ne.0)then;write(*,*)subnam,': cannot allocate own bonds';stop;endif
+   call share(l,m-1,own)
   end if 
+  !write(*,'(a,i3,a,32i4)')'[',me,']: own: ',own(0:nproc)
+  
+  !if(me.eq.0)write(*,*)'compute local products...'
+  first=own(me)
+  last=own(me+1)-1; if(me.eq.nproc-1)last=m
   do p=first,last
    allocate( curr(r(p-1), r(p)) )
    if(present(quad))then
