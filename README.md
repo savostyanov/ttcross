@@ -23,14 +23,26 @@ Basic usage
 Basic tests
 -----------
    
-   * `test_mc_ising.exe`:  calculate Ising susceptibility integrals using Monte Carlo algorithm
-   * `test_qmc_ising.exe`: calculate Ising susceptibility integrals using quasi Monte Carlo algorithm
-   * `test_crs_ising.exe`: calculate Ising susceptibility integrals using tensor cross interpolation algorithm
+  * `test_mc_ising.exe  KIND INDEX Q REP`: calculate Ising susceptibility integrals using Monte Carlo algorithm
+  * `test_qmc_ising.exe KIND INDEX Q REP`: calculate Ising susceptibility integrals using quasi Monte Carlo algorithm
+  * `test_crs_ising.exe KIND INDEX N RANK PIV` : calculate Ising susceptibility integrals using tensor cross interpolation algorithm
+
+Parameters
+----------
+
+   * KIND:  which integral to calculate, 'C', 'D' or 'E'
+   * INDEX: the sub-index of the integral, e.g. 6 to calculate C_6, etc.
+   * Q:     the size of the MC sampling or QMC lattice, the number of evaluations will be 2^Q
+   * REP:   the number of repeats for MC or QMC to estimate standard deviation     (1<=REP)
+   * N:     the one-dimensional quadrature size for the integration
+   * RANK:  the maximum TT-rank in the cross interpolation method                  (1<=RANK)
+   * PIV:   the number of rook pivoting searches in the cross interpolation method (0<=PIV)
 
 Quadruple precision
 -------------------
    Double precision calculations are accurate to approximately 15 decimal digits. To reach higher precision, you can compile the  code enabling `-fdefault-real-8` or `-fdefault-real-16` in the compiler.
    Note that you also will need to obtain and link quadruple-precision BLAS/LAPACK libraries.
+   Use `test_crs_ising.exe` with the same parameters, adjusting the quadrature size `N` to the desired accuracy.
 
 Multiple precision
 ------------------
@@ -42,4 +54,5 @@ Multiple precision
    * The `-fdefault-real-XX` flag has to be disabled.
    * The precision is adjusted via the parameter `mpipl` in `./mpfun-mpfr-v08/mpfunf.f90`.
    After compiling, run the `test_mpf_ising.exe` to calculate Ising susceptibility integrals using tensor cross interpolation algorithm in multiple precision.
+   Use the same parameters as in `test_crs_ising.exe`, adjusting the quadrature size `N` to reach the desired accuracy.
 

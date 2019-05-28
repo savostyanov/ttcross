@@ -1,14 +1,21 @@
 .SUFFIXES:
 .SUFFIXES: .c .f .f90 .F90 .o
-      
+ 
+# set your Fortran and C compilers below
 FC      = mpif90 -ffree-line-length-none
 CC      = mpicc
 LDR     = mpif90
-OPT     = -O2 -fopenmp #-fdefault-real-8 # enable for quad prec
-BLASLIB = -llapack -lblas     # Set this to your BLAS & LAPACK distribution
+OPT     = -O2 -fopenmp 
+# for quad prec uncomment below AND replace BLASLIB with quad prec library
+# OPT     += -fdefault-real-8
+# select BLAS and LAPACK libraries in your system
+BLASLIB = -llapack -lblas
 #BLASLIB = -lmkl_gf_lp64 -lmkl_sequential -lmkl_core
-MPFLIB  = -lmpfr # parameters for MPFR distribution
+# for multiple-precision calculations enable MPFR library below
+MPFLIB  = -lmpfr
+# the location of MPFUN2015 source code
 MPD    = ./mpfun-mpfr-v08
+
 SRC    = zero, nan, trans, default, timef, say, rnd, ptype, ort, lr, mat, quad, tt, ttaux, ttind, ttio, dmrgg, qmc, mc
 MPF    = mpfuna, mpfunf, mpfung1, mpinterface, mpmodule, mpblas, ttmp, dmrggmp
 OBJ    = $(SRC:,=.o).o

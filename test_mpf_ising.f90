@@ -5,6 +5,7 @@ program main
  use omp_lib
  use mp_dmrgg_lib
  use time_lib
+ use default_lib
  implicit none
  include "mpif.h"
  type(mptt) :: qq,tt
@@ -27,11 +28,11 @@ program main
  saydigits=int(-acc)
 
  ! Read params
- call getarg(1,aa); read(aa,'(a1)')a  ; if (a.eq.' ')a='c'      ! dimension of the problem
- call getarg(2,aa); read(aa,'(i10)') m; if (m.eq.0)  m=3        ! dimension of the problem
- call getarg(3,aa); read(aa,'(i10)') n; if (n.eq.0)  n=65       ! stoch. mode size
- call getarg(4,aa); read(aa,'(i10)') r; if (r.eq.0)  r=30       ! max rank
- call getarg(5,aa); read(aa,'(i10)') piv;  ! pivoting strategy
+ call readarg(1,a,'c')      ! type of the integral, e.g. 'c', 'd' or 'e'
+ call readarg(2,m,6)        ! index of the integral, e.g 6 to calculate C_6
+ call readarg(3,n,65)       ! quadrature mode size
+ call readarg(4,r,20)       ! max TT rank
+ call readarg(5,piv,1)      ! pivoting strategy for cross interpolation
 
  call mpi_init(info)
  if(info.ne.0)then;write(*,*)'mpi: init fail: ',info;stop;endif

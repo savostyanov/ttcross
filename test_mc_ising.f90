@@ -2,6 +2,7 @@ program main
  use time_lib
  use quad_lib
  use mat_lib
+ use default_lib
  implicit none
  include "mpif.h"
  integer :: i,j,m,n,nx,q,r,piv,decay,info,nproc,me,neval
@@ -15,10 +16,10 @@ program main
  double precision,external :: dfunc_ising_cont
 
  ! Read params
- call getarg(1,aa); read(aa,'(a1)')a; if(a.eq.' ')a='C'   ! dimension of the problem
- call getarg(2,aa);read(aa,'(i10)')m; if(m.eq.0)m=6        ! dimension of the problem
- call getarg(3,aa);read(aa,'(i10)')q; if(q.eq.0)q=20       ! MC level
- call getarg(4,aa);read(aa,'(i10)')r; if(r.eq.0)r=4        ! MC repeats
+ call readarg(1,a,'c')      ! type of the integral, e.g. 'c', 'd' or 'e'
+ call readarg(2,m,6)        ! index of the integral, e.g 6 to calculate C_6
+ call readarg(3,q,22)       ! MC level: sample 2^q points
+ call readarg(4,r,4)        ! MC repeats r times to estimate the error
 
  call mpi_init(info)
  if(info.ne.0)then;write(*,*)'mpi: init fail: ',info;stop;endif
