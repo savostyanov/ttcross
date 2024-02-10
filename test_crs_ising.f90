@@ -1,6 +1,5 @@
 program main
  use tt_lib
- use ttaux_lib
  use dmrgg_lib
  use time_lib
  use quad_lib

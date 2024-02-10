@@ -9,6 +9,7 @@ module dmrgg_lib
 contains
  subroutine dtt_dmrgg(arg,fun,par,accuracy,maxrank,mybonds,pivoting,neval,quad,tru)
   ! approximate [fun] in TT format using dmrg greedy cross interpolation
+  !use mpi
   implicit none
   include 'mpif.h'
   type(dtt),intent(inout),target :: arg

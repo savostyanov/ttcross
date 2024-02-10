@@ -5,7 +5,7 @@
 FC      = mpif90 -ffree-line-length-none
 CC      = mpicc
 LDR     = mpif90
-OPT     = -O2 -fopenmp 
+OPT     = -O2 -fopenmp  
 # for quad prec uncomment below AND replace BLASLIB with quad prec library
 # OPT     += -fdefault-real-8
 # select BLAS and LAPACK libraries in your system
@@ -16,7 +16,7 @@ MPFLIB  = -lmpfr
 # the location of MPFUN2015 source code
 MPD    = ./mpfun-mpfr-v08
 
-SRC    = zero, nan, trans, default, timef, say, rnd, ptype, ort, lr, mat, quad, tt, ttaux, ttind, ttio, dmrgg, qmc, mc
+SRC    = zero, nan, trans, default, timef, say, rnd, ptype, ort, lr, mat, quad, tt, ttind, ttio, dmrgg, qmc, mc
 MPF    = mpfuna, mpfunf, mpfung1, mpinterface, mpmodule, mpblas, ttmp, dmrggmp
 OBJ    = $(SRC:,=.o).o
 MPOBJ  = $(MPF:,=.o).o
@@ -37,6 +37,12 @@ mpmodule.o: $(MPD)/mpmodule.f90
 		$(FC) $(OPT) -fno-underscoring -c $< $(MPFLIB)
 mpinterface.o: $(MPD)/mpinterface.c
 		$(FC) $(OPT) -c $< $(MPFLIB)
+dmrgg.o:    dmrgg.f90
+		$(FC) $(OPT) -fallow-argument-mismatch -c $< 
+qmc.o:      qmc.f90
+		$(FC) $(OPT) -fallow-argument-mismatch -c $< 
+mc.o:       mc.f90
+		$(FC) $(OPT) -fallow-argument-mismatch -c $< 
 .f.o:
 		$(FC) $(OPT) -c $<
 .f90.o:

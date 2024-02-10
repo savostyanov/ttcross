@@ -51,9 +51,6 @@ module tt_lib
   !final :: ztt_dealloc 
  end type
 
- interface full         ! full array from tt-vector
-  module procedure dtt_full, ztt_full
- end interface
  interface tijk         ! particular element from tt-vector as function of index
   module procedure dtt_ijk,ztt_ijk
  end interface
@@ -82,13 +79,6 @@ module tt_lib
   module procedure dtt_mem,ztt_mem
  end interface
 
- interface nip
-  module procedure dtt_nip, ztt_nip
- end interface
- interface seti
-  module procedure dtt_seti,ztt_seti
- end interface
-
  interface alloc        ! allocation and deallocation of the cores
   module procedure dtt_alloc,ztt_alloc
  end interface
@@ -112,8 +102,12 @@ module tt_lib
  interface say    ! output some information about tt-vector
   module procedure dtt_say, ztt_say
  end interface
- interface sayfull
-  module procedure dtt_sayfull, ztt_sayfull
+ 
+ interface ones
+  module procedure dtt_ones, ztt_ones
+ end interface
+ interface zeros
+  module procedure dtt_zeros, ztt_zeros
  end interface
 
  interface copy
@@ -343,7 +337,9 @@ contains
     call dscal(rr,1.d0/nrm,s,1)
     lognrm=lognrm+dlog(nrm)
    end if
-   do j=1,rr; call dscal(mm,s(j),u(1,j),1); enddo
+   do j=1,rr
+    forall(i=1:mm) u(i,j)=u(i,j)*s(j)
+   enddo
 
    call dgemm('n','n',kk,rr,mm,1.d0,arg%u(k-1)%p,kk,u,mm,0.d0,tmp,kk)
    if(r(k-1).ne.rr)then
@@ -405,7 +401,9 @@ contains
     call dscal(rr,1.d0/nrm,s,1)
     lognrm=lognrm+dlog(nrm)
    end if 
-   do j=1,rr; call zdscal(mm,s(j),u(1,j),1); enddo
+   do j=1,rr
+    forall(i=1:mm) u(i,j)=u(i,j)*s(j)
+   enddo
 
    call zgemm('n','n',kk,rr,mm,one,arg%u(k-1)%p,kk,u,mm,zero,tmp,kk)
    if(r(k-1).ne.rr)then
@@ -441,7 +439,7 @@ contains
   double precision,intent(in) :: tol
   integer,intent(in),optional :: rmax
   character(len=*),parameter :: subnam='dtt_svd0'
-  integer :: i,l,m,k,nn,mm,mn,info
+  integer :: i,j,l,m,k,nn,mm,mn,info
   double precision,pointer,contiguous :: b(:,:),u(:,:),v(:,:),tmp(:)
   double precision,pointer :: s(:)
   integer,pointer :: r(:)
@@ -465,7 +463,9 @@ contains
    call svd(b,u,s,v,tol,rmax,info=info)
    if(info.ne.0)then;write(*,*)subnam,': svd info: ',info;stop;endif
    r(k-1)=size(s)
-   do i=1,r(k-1); call dscal(mm,s(i),u(1,i),1);enddo
+   do j=1,r(k-1)
+    forall(i=1:mm) u(i,j)=u(i,j)*s(j)
+   enddo
    if(associated(tt%u(k)%p))deallocate(tt%u(k)%p)
    allocate(tt%u(k)%p(r(k-1),tt%n(k),r(k)))
    call dcopy(r(k-1)*tt%n(k)*r(k),v,1,tt%u(k)%p,1)
@@ -485,7 +485,7 @@ contains
   double precision,intent(in) :: tol
   integer,intent(in),optional :: rmax
   character(len=*),parameter :: subnam='ztt_svd0'
-  integer :: i,l,m,k,nn,mm,mn,info
+  integer :: i,j,l,m,k,nn,mm,mn,info
   double complex,pointer,contiguous :: b(:,:),u(:,:),v(:,:),tmp(:)
   double precision,pointer :: s(:)
   integer,pointer :: r(:)
@@ -505,7 +505,9 @@ contains
    call svd(b,u,s,v,tol,rmax,info=info)
    if(info.ne.0)then;write(*,*)subnam,': svd info: ',info;stop;endif
    r(k-1)=size(s)
-   do i=1,r(k-1); call zdscal(mm,s(i),u(1,i),1);enddo
+   do j=1,r(k-1)
+    forall(i=1:mm) u(i,j)=u(i,j)*s(j)
+   enddo
    if(associated(tt%u(k)%p))deallocate(tt%u(k)%p)
    allocate(tt%u(k)%p(r(k-1),tt%n(k),r(k)))
    call zcopy(r(k-1)*tt%n(k)*r(k),v,1,tt%u(k)%p,1)
@@ -764,46 +766,6 @@ contains
   xx=x; val=ztt_value(arg,xx)
  end function
 
-! SETI
- subroutine dtt_seti(arg,pos,val)
-  implicit none
-  type(dtt),intent(inout) :: arg
-  integer,intent(in) :: pos,val
-  character(len=*),parameter :: subnam='dtt_seti'
-  integer :: l,m,n,p,q,i,j
-  double precision,allocatable :: a(:,:)
-  l=arg%l; m=arg%m
-  if(.not.(l.le.pos .and. pos.le.m))then;write(*,*)subnam,': pos not between l and m: ',pos,l,m;return;endif
-  n=arg%n(pos); p=arg%r(pos-1);q=arg%r(pos)
-  if(.not.(1.le.val .and. val.le.n))then;write(*,*)subnam,': val not between 1 and n: ',val,n;return;endif
-  allocate(a(p,q))
-  forall(i=1:p,j=1:q)a(i,j)=arg%u(pos)%p(i,val,j)
-  deallocate(arg%u(pos)%p)
-  allocate(arg%u(pos)%p(p,1,q))
-  call dcopy(p*q,a,1,arg%u(pos)%p,1)
-  deallocate(a)
-  arg%n(pos)=1
- end subroutine
- subroutine ztt_seti(arg,pos,val)
-  implicit none
-  type(ztt),intent(inout) :: arg
-  integer,intent(in) :: pos,val
-  character(len=*),parameter :: subnam='ztt_seti'
-  integer :: l,m,n,p,q,i,j
-  double complex,allocatable :: a(:,:)
-  l=arg%l; m=arg%m
-  if(.not.(l.le.pos .and. pos.le.m))then;write(*,*)subnam,': pos not between l and m: ',pos,l,m;return;endif
-  n=arg%n(pos); p=arg%r(pos-1);q=arg%r(pos)
-  if(.not.(1.le.val .and. val.le.n))then;write(*,*)subnam,': val not between 1 and n: ',val,n;return;endif
-  allocate(a(p,q))
-  forall(i=1:p,j=1:q)a(i,j)=arg%u(pos)%p(i,val,j)
-  deallocate(arg%u(pos)%p)
-  allocate(arg%u(pos)%p(p,1,q))
-  call zcopy(p*q,a,1,arg%u(pos)%p,1)
-  deallocate(a)
-  arg%n(pos)=1
- end subroutine
-
 ! SUMALL
  pure double precision function dtt_sumall(arg) result(val)
   implicit none
@@ -868,287 +830,6 @@ contains
   s=1.d0; do i=l,m;s=s*arg%n(i); enddo
   return
  end function
-
-! NIP (pack)
- subroutine dtt_nip(arg,ind)
-  implicit none
-  type(dtt),intent(inout),target :: arg
-  integer,intent(in),optional :: ind(:)
-  character(len=*),parameter :: subnam='dtt_nip'
-  integer :: l,m,p,k,maxr,maxn,info
-  integer,pointer :: r(:),n(:)
-  double precision,allocatable :: tmp(:)
-  l=arg%l; m=arg%m; r=>arg%r; n=>arg%n
-  maxn=maxval(n(l:m)); maxr=maxval(r(l-1:m))
-  allocate(tmp(maxr*maxn*maxr),stat=info)
-  if(info.ne.0)then;write(*,*)subnam,': cannot allocate tmp: ',info;stop;endif
-
-  if(present(ind))then
-   if(any(ind(1:m-l+1)<0) .or. any(ind(1:m-l+1)>n(l:m)))then
-    write(*,*)subnam,': illegal elements in ind'
-    write(*,*)ind(1:m-l+1)
-    call say(arg)
-    stop
-   end if
-   do p=l,m
-    if(ind(p-l+1).ne.0)then
-     do k=1,r(p)
-      call dcopy(r(p-1),arg%u(p)%p(1,ind(p-l+1),k),1,tmp(1+(k-1)*r(p-1)),1)
-     end do
-     deallocate(arg%u(p)%p)
-     allocate(arg%u(p)%p(r(p-1),1,r(p)))
-     call dcopy(r(p-1)*r(p),tmp,1,arg%u(p)%p,1)
-     n(p)=1
-    end if
-   end do
-  end if
-
-  do p=m,l+1,-1
-   if(n(p).eq.1 .or. n(p-1).eq.1)then
-    call dgemm('n','n',r(p-2)*n(p-1),n(p)*r(p),r(p-1),1.d0,arg%u(p-1)%p,r(p-2)*n(p-1),arg%u(p)%p,r(p-1),0.d0,tmp,r(p-2)*n(p-1))
-    deallocate(arg%u(p-1)%p, arg%u(p)%p)
-    allocate(arg%u(p-1)%p(r(p-2),n(p-1)*n(p),r(p)),stat=info)
-    if(info.ne.0)then;write(*,*)subnam,': cannot allocate carriage: ',p,info;stop;endif
-    call dcopy(r(p-2)*n(p-1)*n(p)*r(p),tmp,1,arg%u(p-1)%p,1)
-    n(p-1)=n(p-1)*n(p);r(p-1)=r(p); n(p)=0;r(p)=0
-   end if
-  end do
-  deallocate(tmp)
-
-  k=l
-  do p=l,m
-   if(n(p).gt.0)then
-    if(p.ne.k)then
-     if(associated(arg%u(k)%p))then;write(*,*)subnam,': position is associated, it shouldnot happen: ',p,k;stop;endif
-     allocate(arg%u(k)%p(r(k-1),n(p),r(p)))
-     if( size(arg%u(p)%p,1).ne.r(k-1) .or. size(arg%u(p)%p,2).ne.n(p) .or. size(arg%u(p)%p,3).ne.r(p) )then
-      write(*,*)subnam,': size mismatch! '
-      write(*,*)size(arg%u(p)%p,1),size(arg%u(p)%p,2),size(arg%u(p)%p,3)
-      write(*,*)r(k-1),n(p),r(p)
-      stop
-     end if
-     call dcopy(r(k-1)*n(p)*r(p), arg%u(p)%p,1,arg%u(k)%p,1)
-     deallocate(arg%u(p)%p)
-     n(k)=n(p);r(k)=r(p);n(p)=0;r(p)=0
-    end if
-    k=k+1
-   end if
-  end do
-  arg%m=k-1
- end subroutine
- subroutine ztt_nip(arg,ind)
-  implicit none
-  type(ztt),intent(inout),target :: arg
-  integer,intent(in),optional :: ind(:)
-  character(len=*),parameter :: subnam='ztt_nip'
-  double complex,parameter :: zero=(0.d0,0.d0),one=(1.d0,0.d0)
-  integer :: l,m,p,k,maxr,maxn,info
-  integer,pointer :: r(:),n(:)
-  double complex,allocatable :: tmp(:)
-  l=arg%l; m=arg%m; r=>arg%r; n=>arg%n
-  maxn=maxval(n(l:m)); maxr=maxval(r(l-1:m))
-  allocate(tmp(maxr*maxn*maxr),stat=info)
-  if(info.ne.0)then;write(*,*)subnam,': cannot allocate tmp: ',info;stop;endif
-
-  if(present(ind))then
-   if(any(ind(1:m-l+1)<0) .or. any(ind(1:m-l+1)>n(l:m)))then
-    write(*,*)subnam,': illegal elements in ind'
-    write(*,*)ind(1:m-l+1)
-    call say(arg)
-    stop
-   end if
-   do p=l,m
-    if(ind(p-l+1).ne.0)then
-     do k=1,r(p)
-      call zcopy(r(p-1),arg%u(p)%p(1,ind(p-l+1),k),1,tmp(1+(k-1)*r(p-1)),1)
-     end do
-     deallocate(arg%u(p)%p)
-     allocate(arg%u(p)%p(r(p-1),1,r(p)))
-     call zcopy(r(p-1)*r(p),tmp,1,arg%u(p)%p,1)
-     n(p)=1
-    end if
-   end do
-  end if
-
-  do p=m,l+1,-1
-   if(n(p).eq.1 .or. n(p-1).eq.1)then
-    call zgemm('n','n',r(p-2)*n(p-1),n(p)*r(p),r(p-1),one,arg%u(p-1)%p,r(p-2)*n(p-1),arg%u(p)%p,r(p-1),zero,tmp,r(p-2)*n(p-1))
-    deallocate(arg%u(p-1)%p, arg%u(p)%p)
-    allocate(arg%u(p-1)%p(r(p-2),n(p-1)*n(p),r(p)),stat=info)
-    if(info.ne.0)then;write(*,*)subnam,': cannot allocate carriage: ',p,info;stop;endif
-    call zcopy(r(p-2)*n(p-1)*n(p)*r(p),tmp,1,arg%u(p-1)%p,1)
-    n(p-1)=n(p-1)*n(p);r(p-1)=r(p); n(p)=0;r(p)=0
-   end if
-  end do
-  deallocate(tmp)
-
-  k=l
-  do p=l,m
-   if(n(p).gt.0)then
-    if(p.ne.k)then
-     if(associated(arg%u(k)%p))then;write(*,*)subnam,': position is associated, it shouldnot happen: ',p,k;stop;endif
-     allocate(arg%u(k)%p(r(k-1),n(p),r(p)))
-     if( size(arg%u(p)%p,1).ne.r(k-1) .or. size(arg%u(p)%p,2).ne.n(p) .or. size(arg%u(p)%p,3).ne.r(p) )then
-      write(*,*)subnam,': size mismatch! '
-      write(*,*)size(arg%u(p)%p,1),size(arg%u(p)%p,2),size(arg%u(p)%p,3)
-      write(*,*)r(k-1),n(p),r(p)
-      stop
-     end if
-     call zcopy(r(k-1)*n(p)*r(p), arg%u(p)%p,1,arg%u(k)%p,1)
-     deallocate(arg%u(p)%p)
-     n(k)=n(p);r(k)=r(p);n(p)=0;r(p)=0
-    end if
-    k=k+1
-   end if
-  end do
-  arg%m=k-1
- end subroutine
-
-
-! FULL
- subroutine dtt_full(arg,a,alpha,beta,part,ind)
-  ! A = [beta]*A + [alpha]*FULL(TT), TT = arg([l:m]), l,m=[part]
-  ! A size r(l-1) *n(l)*...*n(m)* r(m)
-  implicit none
-  type(dtt),intent(in),target :: arg
-  double precision,intent(inout) :: a(*)
-  double precision,intent(in),optional :: alpha,beta
-  integer,intent(in),optional :: part(2),ind(:)
-  character(len=*),parameter :: subnam='dtt_full'
-  double precision :: alp,bet
-  type(pointd) :: p(0:1)
-  integer,pointer :: r(:),n(:)
-  integer :: l,m,na,nb,mem,rr,info,i,j,pp
-  integer,allocatable :: ii(:),nn(:)
-  double precision,allocatable :: q(:)
-
-  alp=default(1.d0,alpha)
-  bet=default(0.d0,beta)
-  if(present(part))then;l=part(1);m=part(2);else;l=arg%l;m=arg%m;endif
-  r=>arg%r; n=>arg%n
-
-  if(l.gt.m)then
-   write(*,*)subnam,': empty input';
-   do i=1,r(l-1) * product(nn(l:m)) * r(m); a(i)=0.d0; enddo
-   return
-  end if
-
-  allocate(ii(l:m),nn(l:m)); ii=0; nn(l:m)=arg%n(l:m)
-  if(present(ind))then
-   do i=l,m
-    ii(i)=ind(i-l+1)
-    if(ii(i).lt.0 .or. ii(i).gt.n(i))then;write(*,*)subnam,': invalid ind:',ind(1:m-l+1);stop;endif
-    if(ii(i).ne.0)nn(i)=1
-   end do
-  end if
-
-  na=r(l-1) * product(nn(l:m)) * r(m)
-  mem=na; rr=1
-  do i=l,m
-   if(.not.(r(l-1)*product(nn(l:i))*r(i).gt.0))then;write(*,*)subnam,': oversized mem';stop;endif
-   mem=max(mem, r(l-1)*product(nn(l:i))*r(i) )
-   rr=max(rr,r(i-1)*r(i))
-  end do
-  allocate(p(0)%p(mem),p(1)%p(mem),q(rr),stat=info)
-  if(info.ne.0)then;write(*,*)subnam,': not enough memory';stop;endif
-
-  if(ii(l).eq.0)then
-   call dcopy(r(l-1)*n(l)*r(l),arg%u(l)%p,1,p(0)%p,1)
-  else
-   do j=1,r(l);call dcopy(r(l-1),arg%u(l)%p(1,ii(l),j),1,p(0)%p(1+(j-1)*r(l-1)),1); enddo
-  end if
-  pp=0
-  do i=l+1,m
-   nb=r(l-1) * product(nn(l:i-1))
-   if(ii(i).eq.0)then
-    if(nb*n(i)*r(i).gt.mem)then;write(*,*)subnam,': nb-by-n-by-r > mem: ',nb,n(i),r(i),mem;stop;endif
-    call dgemm('n','n',nb,n(i)*r(i),r(i-1),1.d0,p(pp)%p,nb,arg%u(i)%p,r(i-1),0.d0,p(1-pp)%p,nb)
-   else
-    if(nb*r(i).gt.mem)then;write(*,*)subnam,': nb-by-r > mem: ',nb,r(i),mem;stop;endif
-    do j=1,r(i);call dcopy(r(i-1),arg%u(i)%p(1,ii(i),j),1,q(1+(j-1)*r(i-1)),1);enddo
-    call dgemm('n','n',nb,r(i),r(i-1),1.d0,p(pp)%p,nb,q,r(i-1),0.d0,p(1-pp)%p,nb)
-   end if
-   pp=1-pp
-  end do
-
-  if(bet.eq.0.d0)then
-   call dcopy(na,p(pp)%p,1,a,1)
-   call dscal(na,alp,a,1)
-  else
-   call dscal(na,bet,a,1)
-   call daxpy(na,alp,p(pp)%p,1,a,1)
-  endif
-  deallocate(p(0)%p,p(1)%p,q,ii,nn)
- end subroutine
- subroutine ztt_full(arg,a,alpha,beta,part,ind)
-  ! A = [beta]*A + [alpha]*FULL(TT), TT = arg([l:m]), l,m=[part]
-  ! A sizes r(l-1) *n(l)*...*n(m)* r(m)
-  implicit none
-  type(ztt),intent(in),target :: arg
-  double complex,intent(inout) :: a(*)
-  double complex,intent(in),optional :: alpha,beta
-  integer,intent(in),optional :: part(2),ind(:)
-  character(len=*),parameter :: subnam='ztt_full'
-  double complex,parameter :: one=(1.d0,0.d0),zero=(0.d0,0.d0)
-  double complex :: alp,bet
-  type(pointz) :: p(0:1)
-  integer,pointer :: r(:),n(:)
-  integer :: l,m,na,nb,mem,rr,info,i,j,pp
-  integer,allocatable :: ii(:),nn(:)
-  double complex,allocatable :: q(:)
-
-  alp=default(one,alpha)
-  bet=default(zero,beta)
-  if(present(part))then;l=part(1);m=part(2);else;l=arg%l;m=arg%m;endif
-  r=>arg%r; n=>arg%n
-
-  allocate(ii(l:m),nn(l:m)); ii=0; nn(l:m)=arg%n(l:m)
-  if(present(ind))then
-   do i=l,m
-    ii(i)=ind(i-l+1)
-    if(ii(i).lt.0 .or. ii(i).gt.n(i))then;write(*,*)subnam,': invalid ind:',ind(1:m-l+1);stop;endif
-    if(ii(i).ne.0)nn(i)=1
-   end do
-  end if
-
-  na=r(l-1) * product(nn(l:m)) * r(m)
-  mem=na; rr=1
-  do i=l,m
-   if(.not.(r(l-1)*product(nn(l:i))*r(i).gt.0))then;write(*,*)subnam,': oversized mem';stop;endif
-   mem=max(mem, r(l-1)*product(nn(l:i))*r(i) )
-   rr=max(rr,r(i-1)*r(i))
-  end do
-  allocate(p(0)%p(mem),p(1)%p(mem),q(rr),stat=info)
-  if(info.ne.0)then;write(*,*)subnam,': not enough memory';stop;endif
-
-  if(ii(l).eq.0)then
-   call zcopy(r(l-1)*n(l)*r(l),arg%u(l)%p,1,p(0)%p,1)
-  else
-   do j=1,r(l);call zcopy(r(l-1),arg%u(l)%p(1,ii(l),j),1,p(0)%p(1+(j-1)*r(l-1)),1); enddo
-  end if
-  pp=0
-  do i=l+1,m
-   nb=r(l-1) * product(nn(l:i-1))
-   if(ii(i).eq.0)then
-    if(nb*n(i)*r(i).gt.mem)then;write(*,*)subnam,': nb-by-n-by-r > mem: ',nb,n(i),r(i),mem;stop;endif
-    call zgemm('n','n',nb,n(i)*r(i),r(i-1),one,p(pp)%p,nb,arg%u(i)%p,r(i-1),zero,p(1-pp)%p,nb)
-   else
-    if(nb*r(i).gt.mem)then;write(*,*)subnam,': nb-by-r > mem: ',nb,r(i),mem;stop;endif
-    do j=1,r(i);call zcopy(r(i-1),arg%u(i)%p(1,ii(i),j),1,q(1+(j-1)*r(i-1)),1);enddo
-    call dgemm('n','n',nb,r(i),r(i-1),one,p(pp)%p,nb,q,r(i-1),zero,p(1-pp)%p,nb)
-   end if
-   pp=1-pp
-  end do
-
-  if(bet.eq.zero)then
-   call zcopy(na,p(pp)%p,1,a,1)
-   call zscal(na,alp,a,1)
-  else
-   call zscal(na,bet,a,1)
-   call zaxpy(na,alp,p(pp)%p,1,a,1)
-  endif
-  deallocate(p(0)%p,p(1)%p,q,ii,nn)
- end subroutine
 
 
 !ALLOC
@@ -1318,12 +999,13 @@ contains
  type(ztt) function ztt_mul_zt(a,b) result(c)
   double complex,intent(in) :: a
   type(ztt),intent(in) :: b
-  integer :: k,l,m
+  integer :: k,l,m, p,i,q
   l=b%l; m=b%m; c%l=l; c%m=m; c%n=b%n; c%r=b%r; call alloc(c)
   do k=l,m
-   call zcopy(b%r(k-1)*b%n(k)*b%r(k),b%u(k)%p,1,c%u(k)%p,1)
+   !call zcopy(b%r(k-1)*b%n(k)*b%r(k),b%u(k)%p,1,c%u(k)%p,1)
+   forall(p=1:b%r(k-1),i=1:b%n(k),q=1:b%r(k)) c%u(k)%p(p,i,q)=a*b%u(k)%p(p,i,q)
   end do
-  call zscal(b%r(l-1)*b%n(l)*b%r(l),a,c%u(l)%p,1)
+  !call zscal(b%r(l-1)*b%n(l)*b%r(l),a,c%u(l)%p,1)
  end function
 
 ! ASSIGN COPY
@@ -1340,10 +1022,13 @@ contains
   implicit none
   type(ztt),intent(inout) :: b
   type(ztt),intent(in) :: a
-  integer :: k,l,m
+  integer :: k,l,m, p,i,q
   l=a%l;m=a%m
   b%l=l; b%m=m; b%n(l:m)=a%n(l:m); b%r(l-1:m)=a%r(l-1:m); call alloc(b)
-  do k=l,m; call zcopy(a%r(k-1)*a%n(k)*a%r(k),a%u(k)%p,1,b%u(k)%p,1); end do
+  do k=l,m
+   !call zcopy(a%r(k-1)*a%n(k)*a%r(k),a%u(k)%p,1,b%u(k)%p,1);
+   forall(p=1:a%r(k-1),i=1:a%n(k),q=1:a%r(k)) b%u(k)%p(p,i,q)=a%u(k)%p(p,i,q)
+  end do
  end subroutine
  subroutine ztt_dtt_assign(z,d)
   implicit none
@@ -1375,11 +1060,14 @@ contains
   type(ztt),intent(in) :: a
   type(ztt),intent(inout) :: b
   integer,intent(in),optional :: low
-  integer :: k,l,m,ll,mm
+  integer :: k,l,m,ll,mm, p,i,q
   l=a%l;m=a%m; ll=default(b%l,low); mm=ll-l+m
   b%l=ll; b%m=mm; b%n(ll:mm)=a%n(l:m); b%r(ll-1:mm)=a%r(l-1:m);
   if(.not.all(a%n(l:m)>0))return;if(.not.all(a%r(l-1:m)>0))return;call alloc(b)
-  do k=l,m; call zcopy(a%r(k-1)*a%n(k)*a%r(k),a%u(k)%p,1,b%u(ll-l+k)%p,1); end do
+  do k=l,m
+   !call zcopy(a%r(k-1)*a%n(k)*a%r(k),a%u(k)%p,1,b%u(ll-l+k)%p,1)
+   forall(p=1:a%r(k-1),i=1:a%n(k),q=1:a%r(k)) b%u(ll-l+k)%p(p,i,q)=a%u(k)%p(p,i,q)
+  end do
  end subroutine
 
 ! NORM
@@ -1535,40 +1223,6 @@ contains
   end if
   write(*,'(a,1024i'//d//')') 'r: ',arg%r(arg%l-1:arg%m)
  end subroutine
- subroutine dtt_sayfull(arg)
-  implicit none
-  type(dtt),intent(in) :: arg
-  character(len=*),parameter :: subnam='dtt_sayfull'
-  integer :: l,m,n,i,info
-  double precision,allocatable :: a(:)
-  l=arg%l; m=arg%m; if(l.gt.m)return
-  n=arg%r(l-1)*product(arg%n(l:m))*arg%r(m); if(n.le.0)return
-  if(n.gt.2**20)then;write(*,*)subnam,': too much to say';return;endif
-  allocate(a(n),stat=info)
-  if(info.ne.0)then;write(*,*)subnam,': cannot allocate';stop;endif
-  call dtt_full(arg,a)
-  do i=1,n
-   write(*,'(e22.14)') a(i)
-  end do
-  deallocate(a)
- end subroutine
- subroutine ztt_sayfull(arg)
-  implicit none
-  type(ztt),intent(in) :: arg
-  character(len=*),parameter :: subnam='ztt_sayfull'
-  integer :: l,m,n,i,info
-  double complex,allocatable :: a(:)
-  l=arg%l; m=arg%m; if(l.gt.m)return
-  n=arg%r(l-1)*product(arg%n(l:m))*arg%r(m); if(n.le.0)return
-  if(n.gt.2**20)then;write(*,*)subnam,': too much to say';return;endif
-  allocate(a(n),stat=info)
-  if(info.ne.0)then;write(*,*)subnam,': cannot allocate';stop;endif
-  call ztt_full(arg,a)
-  do i=1,n
-   write(*,'(e22.14,1x,e22.14)') a(i)
-  end do
-  deallocate(a)
- end subroutine
 
 ! RANK
  double precision function dtt_rank(arg) result (r)
@@ -1689,5 +1343,60 @@ contains
   if(.not.l)return
   return
  end function
+
+ ! ONES ZEROS
+ subroutine dtt_ones(arg)
+ ![tt] array of ones
+  implicit none
+  type(dtt),intent(inout) :: arg
+  character(len=*),parameter :: subnam='dtt_ones'
+  integer :: l,m,k
+  l=arg%l;m=arg%m
+  if(m.lt.l)return
+  if(.not.all(arg%n(l:m)>0))then;write(*,*)subnam,': n: ',arg%n(l:m);stop;endif
+  arg%r(l-1:m)=1
+  call alloc(arg)
+  do k=l,m; arg%u(k)%p=1.d0; end do
+ end subroutine 
+ subroutine ztt_ones(arg)
+ ![tt] array of ones
+  implicit none
+  type(ztt),intent(inout) :: arg
+  character(len=*),parameter :: subnam='ztt_ones'
+  integer :: l,m,k
+  l=arg%l;m=arg%m
+  if(m.lt.l)return
+  if(.not.all(arg%n(l:m)>0))then;write(*,*)subnam,': n: ',arg%n(l:m);stop;endif
+  arg%r(l-1:m)=1
+  call alloc(arg)
+  do k=l,m; arg%u(k)%p=(1.d0,0.d0); end do
+ end subroutine
+ 
+ subroutine dtt_zeros(arg)
+ ![tt] array of zeros
+  implicit none
+  type(dtt),intent(inout) :: arg
+  character(len=*),parameter :: subnam='dtt_zeros'
+  integer :: l,m,k
+  l=arg%l;m=arg%m
+  if(m.lt.l)return
+  if(.not.all(arg%n(l:m)>0))then;write(*,*)subnam,': n: ',arg%n(l:m);stop;endif
+  arg%r(l-1:m)=1
+  call alloc(arg)
+  do k=l,m; arg%u(k)%p=0.d0; end do
+ end subroutine 
+ subroutine ztt_zeros(arg)
+ ![tt] array of zeros
+  implicit none
+  type(ztt),intent(inout) :: arg
+  character(len=*),parameter :: subnam='ztt_zeros'
+  integer :: l,m,k
+  l=arg%l;m=arg%m
+  if(m.lt.l)return
+  if(.not.all(arg%n(l:m)>0))then;write(*,*)subnam,': n: ',arg%n(l:m);stop;endif
+  arg%r(l-1:m)=1
+  call alloc(arg)
+  do k=l,m; arg%u(k)%p=(0.d0,0.d0); end do
+ end subroutine
 
 end module

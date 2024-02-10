@@ -341,8 +341,8 @@ contains
    do while(reort.and.pass.lt.3)
     call zgemv('c',n,ru,one,u,n,x,1, zero,gu,1)
     call zgemv('c',n,r,one,yy,n,x,1, zero,gv,1)
-    call dgemv('n',n,ru,-one,u,n,gu,1, one,x,1)
-    call dgemv('n',n,r,-one,yy,n,gv,1, one,x,1)
+    call zgemv('n',n,ru,-one,u,n,gu,1, one,x,1)
+    call zgemv('n',n,r,-one,yy,n,gv,1, one,x,1)
     bb(1:ru,j)=bb(1:ru,j)+gu; bb(ru+1:ru+r,j)=bb(ru+1:ru+r,j)+gv(1:r)
     nrm1=nrm2; nrm2=dznrm2(n,x,1); reort=nrm2.lt.nrm1/2; pass=pass+1
    end do
